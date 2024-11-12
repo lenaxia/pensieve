@@ -11,6 +11,35 @@ import { SettingsTextField } from "./settings-text-field";
 import { SettingsSwitchField } from "./settings-switch-field";
 import { SettingsTab } from "./tabs";
 
+export const RemoteWhisperSettings: FC = () => {
+  const form = useFormContext<Settings>();
+
+  return (
+    <>
+      <Heading mt="2rem">Remote Whisper Server</Heading>
+      <Text as="p" mb="1rem">
+        Configure the settings to use a remote Whisper server for transcription
+        instead of the local instance.
+      </Text>
+      <SettingsTextField
+        label="Server URL"
+        {...form.register("remoteWhisper.serverUrl", {
+          required: "Server URL is required",
+        })}
+      />
+      <SettingsTextField
+        label="Authentication Token"
+        {...form.register("remoteWhisper.authToken")}
+      />
+      <SettingsTextField
+        label="Request Timeout (ms)"
+        type="number"
+        {...form.register("remoteWhisper.timeout")}
+      />
+    </>
+  );
+};
+
 export const WhisperSettings: FC = () => {
   const form = useFormContext<Settings>();
 
@@ -59,6 +88,15 @@ export const WhisperSettings: FC = () => {
       </RadioCards.Root>
 
       <Heading mt="2rem">Whisper configuration</Heading>
+
+      <SettingsSwitchField
+        form={form}
+        field="useRemoteWhisper"
+        label="Use Remote Whisper Server"
+        description="Use a remote Whisper server for transcription instead of the local instance."
+      />
+
+      {form.watch("useRemoteWhisper") && <RemoteWhisperSettings />}
 
       <SettingsTextField
         {...form.register("whisper.threads")}

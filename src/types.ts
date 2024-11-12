@@ -154,6 +154,8 @@ export const defaultSettings = {
       "{{homedir}}\\Desktop\\Pensieve Recordings\\assets\\\\{{keydate date}}_{{timestamp}}{{ext}}",
     callCmdlet: 'echo "Recording stored to {{date}}."',
   },
+  useRemoteWhisper: false,
+  remoteWhisper: null,
 };
 
 export type Settings = typeof defaultSettings;
@@ -181,4 +183,10 @@ export type RecordingIpcEvents = {
   pause: () => void;
   resume: () => void;
   stop: () => void;
+};
+
+export type RemoteWhisperConfig = {
+  serverUrl: string;
+  authToken?: string;
+  timeout?: number;
 };
