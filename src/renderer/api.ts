@@ -1,15 +1,32 @@
-import { createRendererIpc } from "./create-renderer-ipc";
-import type { mainApi as mainApiBackend } from "../main/ipc/main-api";
-import type { windowsApi as windowsApiBackend } from "../main/ipc/windows-api";
-import type { modelsApi as modelsApiBackend } from "../main/ipc/models-api";
-import type { historyApi as historyApiBackend } from "../main/ipc/history-api";
-import type { recorderIpcApi as recorderIpcApiBackend } from "../main/ipc/recorder-ipc";
+import { RemoteWhisperConfig } from "./types";
 
-export const mainApi = createRendererIpc<typeof mainApiBackend>("main");
-export const windowsApi =
-  createRendererIpc<typeof windowsApiBackend>("windows");
-export const modelsApi = createRendererIpc<typeof modelsApiBackend>("models");
-export const historyApi =
-  createRendererIpc<typeof historyApiBackend>("history");
-export const recorderIpcApi =
-  createRendererIpc<typeof recorderIpcApiBackend>("recorderIpc");
+export const mainApi = {
+  getSettings: async () => {
+    const response = await window.ipcApi.main.invoke({
+      type: "getSettings",
+    });
+    return response;
+  },
+  saveSettings: async (settings: any) => {
+    await window.ipcApi.main.invoke({
+      type: "saveSettings",
+      payload: settings,
+    });
+  },
+  testRemoteWhisperConnection: async (config: RemoteWhisperConfig) => {
+    const response = await window.ipcApi.main.invoke({
+      type: "testRemoteWhisperConnection",
+      payload: config,
+    });
+    return response;
+  },
+};
+
+export const modelsApi = {
+  listModels: async () => {
+    const response = await window.ipcApi.models.invoke({
+      type: "listModels",
+    });
+    return response;
+  },
+};

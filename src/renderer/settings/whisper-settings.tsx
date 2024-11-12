@@ -1,18 +1,41 @@
-import { FC } from "react";
+import { FC, useState } from "react";
 import * as Tabs from "@radix-ui/react-tabs";
-import { Badge, Flex, Heading, RadioCards, Text } from "@radix-ui/themes";
+import { Badge, Button, Flex, Heading, RadioCards, Text } from "@radix-ui/themes";
 import { useFormContext } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import { modelData } from "../../model-data";
-import { Settings } from "../../types";
+import { Settings, RemoteWhisperConfig } from "../../types";
 import { QueryKeys } from "../../query-keys";
 import { modelsApi } from "../api";
 import { SettingsTextField } from "./settings-text-field";
 import { SettingsSwitchField } from "./settings-switch-field";
 import { SettingsTab } from "./tabs";
+import { mainApi } from "../api";
+import { useToast } from "../common/use-toast";
 
 export const RemoteWhisperSettings: FC = () => {
   const form = useFormContext<Settings>();
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const { showToast } = useToast();
+
+  const testRemoteWhisperConnection = async () => {
+    setIsTestingConnection(true);
+    const remoteConfig = form.getValues("remoteWhisper");
+    if (!remoteConfig) {
+      showToast("Remote Whisper configuration is missing", "error");
+      setIsTestingConnection(false);
+      return;
+    }
+
+    try {
+      await mainApi.testRemoteWhisperConnection(remoteConfig);
+      showToast("Connection to remote Whisper server successful", "success");
+    } catch (error) {
+      showToast(`Connection to remote Whisper server failed: ${error.message}`, "error");
+    } finally {
+      setIsTestingConnection(false);
+    }
+  };
 
   return (
     <>
@@ -36,6 +59,13 @@ export const RemoteWhisperSettings: FC = () => {
         type="number"
         {...form.register("remoteWhisper.timeout")}
       />
+      <Button
+        mt="1rem"
+        isLoading={isTestingConnection}
+        onClick={testRemoteWhisperConnection}
+      >
+        Test Connection
+      </Button>
     </>
   );
 };

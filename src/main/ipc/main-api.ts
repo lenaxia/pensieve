@@ -1,49 +1,32 @@
-import { app, desktopCapturer, shell } from "electron";
-import path from "path";
-import * as settings from "../domain/settings";
-import * as screenshot from "../domain/screenshot";
+import { app } from "electron";
+import { getSettings, saveSettings } from "../domain/settings";
+import { IpcInterface } from "./ipc-connector";
+import axios from "axios";
+import { RemoteWhisperConfig } from "../../types";
 
-const updateExe = path.resolve(
-  path.dirname(process.execPath),
-  "..",
-  "Update.exe",
-);
-const exeName = path.basename(process.execPath);
-
-export const mainApi = {
-  getAppVersion: async () => app.getVersion(),
-
-  getSources: async () => {
-    return desktopCapturer.getSources({ types: ["window"] });
+export const mainApi: IpcInterface = {
+  getSettings: async () => {
+    return await getSettings();
   },
-
-  setAutoStart: async (value: boolean) => {
-    app.setLoginItemSettings({
-      openAtLogin: value,
-      path: updateExe,
-      args: [
-        "--processStart",
-        `"${exeName}"`,
-        "--process-start-args",
-        '"--hidden --autostart"',
-      ],
-    });
+  saveSettings: async (payload) => {
+    await saveSettings(payload);
   },
-
-  openLogFiles: async () => {
-    const folder = path.join(app.getPath("userData"), "logs");
-    await shell.openPath(folder);
+  testRemoteWhisperConnection: async (config: RemoteWhisperConfig) => {
+    try {
+      const response = await axios.post(config.serverUrl, new ArrayBuffer(0), {
+        headers: {
+          "Content-Type": "audio/wav",
+          Authorization: config.authToken ? `Bearer ${config.authToken}` : undefined,
+        },
+        timeout: config.timeout,
+      });
+      return response.status === 200;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Remote Whisper server error: ${error.message}`);
+      } else {
+        throw new Error("Unexpected error occurred while testing remote Whisper server connection");
+      }
+    }
   },
-
-  openWeb: async (url: string) => {
-    await shell.openExternal(url);
-  },
-
-  requestScreenshotArea: screenshot.requestScreenshot,
-  completeScreenshotArea: screenshot.completeScreenshot,
-  abortScreenshotArea: screenshot.abortScreenshot,
-
-  getSettings: settings.getSettings,
-  saveSettings: settings.saveSettings,
-  resetSettings: settings.reset,
 };
