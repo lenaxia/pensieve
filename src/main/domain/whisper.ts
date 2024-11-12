@@ -12,19 +12,43 @@ import * as ffmpeg from "./ffmpeg";
 import * as runner from "./runner";
 import * as postprocess from "./postprocess";
 import { getSettings } from "./settings";
-import { RecordingTranscript, RecordingTranscriptItem, RemoteWhisperConfig } from "../../types";
+import { RecordingTranscript, RecordingTranscriptItem, RemoteWhisperConfig, Settings } from "../../types";
 
 const whisperPath = path.join(getExtraResourcesFolder(), "whisper.exe");
 
 const sendToRemoteWhisper = async (
   wavFile: string,
   remoteConfig: RemoteWhisperConfig,
+  whisperConfig: Settings["whisper"]
 ): Promise<RecordingTranscript> => {
   try {
     const wavData = await fs.promises.readFile(wavFile);
-    const response = await axios.post(remoteConfig.serverUrl, wavData, {
+    const requestPayload = {
+      audio: wavData,
+      options: {
+        task: "transcribe",
+        model: whisperConfig.model,
+        language: whisperConfig.language,
+        threads: whisperConfig.threads,
+        processors: whisperConfig.processors,
+        maxContext: whisperConfig.maxContext,
+        maxLen: whisperConfig.maxLen,
+        splitOnWord: whisperConfig.splitOnWord,
+        bestOf: whisperConfig.bestOf,
+        beamSize: whisperConfig.beamSize,
+        audioCtx: whisperConfig.audioCtx,
+        wordThold: whisperConfig.wordThold,
+        entropyThold: whisperConfig.entropyThold,
+        logprobThold: whisperConfig.logprobThold,
+        translate: whisperConfig.translate,
+        diarize: whisperConfig.diarize,
+        noFallback: whisperConfig.noFallback,
+      },
+    };
+
+    const response = await axios.post(remoteConfig.serverUrl, requestPayload, {
       headers: {
-        "Content-Type": "audio/wav",
+        "Content-Type": "application/json",
         Authorization: remoteConfig.authToken ? `Bearer ${remoteConfig.authToken}` : undefined,
       },
       timeout: remoteConfig.timeout,
@@ -78,13 +102,13 @@ export const processWavFile = async (
   const inputTime = await ffmpeg.getDuration(input);
 
   if (useRemoteWhisper) {
-    const { remoteWhisper } = await getSettings();
+    const { remoteWhisper, whisper } = await getSettings();
     if (!remoteWhisper) {
       throw new Error("Remote Whisper configuration is missing");
     }
 
     try {
-      const transcriptionResult = await sendToRemoteWhisper(input, remoteWhisper);
+      const transcriptionResult = await sendToRemoteWhisper(input, remoteWhisper, whisper);
       // Process the transcription result
       const transcriptItems = transcriptionResult.transcription;
       const totalDuration = Math.max(...transcriptItems.map(item => item.offsets.to));
