@@ -1,6 +1,7 @@
 import path from "path";
 import log from "electron-log/main";
 import axios from "axios";
+import fs from "fs";
 import {
   buildArgs,
   getExtraResourcesFolder,
@@ -11,13 +12,14 @@ import * as ffmpeg from "./ffmpeg";
 import * as runner from "./runner";
 import * as postprocess from "./postprocess";
 import { getSettings } from "./settings";
+import { RecordingTranscript, RecordingTranscriptItem, RemoteWhisperConfig } from "../../types";
 
 const whisperPath = path.join(getExtraResourcesFolder(), "whisper.exe");
 
 const sendToRemoteWhisper = async (
   wavFile: string,
   remoteConfig: RemoteWhisperConfig,
-) => {
+): Promise<RecordingTranscript> => {
   try {
     const wavData = await fs.promises.readFile(wavFile);
     const response = await axios.post(remoteConfig.serverUrl, wavData, {
@@ -28,7 +30,28 @@ const sendToRemoteWhisper = async (
       timeout: remoteConfig.timeout,
     });
 
-    return response.data;
+    const transcriptionResult = response.data;
+    const transcriptItems: RecordingTranscriptItem[] = transcriptionResult.segments.map(
+      (segment: any) => ({
+        timestamps: {
+          from: segment.start,
+          to: segment.end,
+        },
+        offsets: {
+          from: segment.start_offset,
+          to: segment.end_offset,
+        },
+        text: segment.text,
+        speaker: segment.speaker,
+      }),
+    );
+
+    const result: RecordingTranscript = {
+      result: { language: transcriptionResult.language },
+      transcription: transcriptItems,
+    };
+
+    return result;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       log.error("Error sending request to remote Whisper server:", error.message);
@@ -45,7 +68,7 @@ export const processWavFile = async (
   output: string,
   modelId: string,
   useRemoteWhisper: boolean,
-) => {
+): Promise<void> => {
   postprocess.setStep("whisper");
 
   const out = path.join(
@@ -60,11 +83,22 @@ export const processWavFile = async (
       throw new Error("Remote Whisper configuration is missing");
     }
 
-    const transcriptionResult = await sendToRemoteWhisper(input, remoteWhisper);
-    // Process the transcription result from the remote server
-    // ...
+    try {
+      const transcriptionResult = await sendToRemoteWhisper(input, remoteWhisper);
+      // Process the transcription result
+      const transcriptItems = transcriptionResult.transcription;
+      const totalDuration = Math.max(...transcriptItems.map(item => item.offsets.to));
+      for (const item of transcriptItems) {
+        const progress = item.offsets.to / totalDuration;
+        postprocess.setProgress("whisper", progress);
+      }
 
-    return;
+      return;
+    } catch (error) {
+      log.error("Error using remote Whisper server:", error);
+      log.info("Falling back to local Whisper processing");
+      // Fall back to local Whisper processing
+    }
   }
 
   const settings = (await getSettings()).whisper;
