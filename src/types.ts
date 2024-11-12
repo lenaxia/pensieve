@@ -155,7 +155,7 @@ export const defaultSettings = {
     callCmdlet: 'echo "Recording stored to {{date}}."',
   },
   useRemoteWhisper: false,
-  remoteWhisper: null,
+  remoteWhisper: null as RemoteWhisperConfig | null,
 };
 
 export type Settings = typeof defaultSettings;
