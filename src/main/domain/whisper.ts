@@ -97,6 +97,7 @@ export const processWavFile = async (
     } catch (error) {
       log.error("Error using remote Whisper server:", error);
       log.info("Falling back to local Whisper processing");
+      postprocess.setError("whisper", "Error using remote Whisper server. Falling back to local processing.");
       // Fall back to local Whisper processing
     }
   }
